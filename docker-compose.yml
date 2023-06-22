@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  patientms:
+    build:
+      context: ./patient
+      dockerfile: Dockerfile
+    container_name: patientms
+    restart: unless-stopped
+    links:
+      - postgres
+      - rabbitmq
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      POSTGRES_CONNECTIONSTRING: User ID=postgres;Password=changeme;Host=postgres;Port=5432;Database=patient
+      RABBITMQ_HOSTNAME: rabbitmq
+      RABBITMQ_USERNAME: humc
+      RABBITMQ_PASSWORD: humc
+      RABBITMQ_PORT: 5672
+    ports:
+      - "3029:80"
+
+  postgres:
+    image: postgres:15.2-alpine
+    hostname: postgres
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - '15432:5432'
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=changeme
+      # //https://github.com/npgsql/efcore.pg/issues/1926 fun fact, blijkbaar is "postgres" een speciale term binnen... postgres.
+
+    volumes:
+      - ./development/postgres/init/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+
+  rabbitmq:
+    image: rabbitmq:3.11-management-alpine
+    hostname: rabbitmq
+    container_name: rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - ./development/rabbitmq/data/:/var/lib/rabbitmq/mnesia/
+    environment:
+      RABBITMQ_DEFAULT_USER: humc
+      RABBITMQ_DEFAULT_PASS: humc
+
