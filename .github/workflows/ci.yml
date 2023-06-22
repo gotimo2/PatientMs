@@ -24,7 +24,7 @@ jobs:
         run: docker-compose down && docker-compose build --no-cache patientms
 
       - name: Start docker containers
-        run: docker-compose up -d patient rabbitmq postgres
+        run: docker-compose up -d patientms rabbitmq postgres
       
       - name: Test patient module
         run: dotnet test --verbosity normal
